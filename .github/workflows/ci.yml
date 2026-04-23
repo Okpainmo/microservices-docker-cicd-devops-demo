@@ -54,7 +54,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd api
-          pytest --cov=. --cov-report=xml tests/
+          PYTHONPATH=. pytest --cov=. --cov-report=xml tests/
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
