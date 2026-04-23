@@ -1,0 +1,55 @@
+name: CD Pipeline
+
+on:
+    workflow_run:
+        workflows: [ "CI Pipeline" ]
+        types:
+            - completed
+        branches:
+            - main
+
+jobs:
+    deploy:
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Bring up current stack
+              run: |
+                  cp .env.example .env
+                  docker-compose up -d --build
+
+            - name: Simulate Rolling Update
+              run: |
+                  echo "Starting rolling update for API service..."
+
+                  # 1. Start a new instance of the API
+                  docker-compose up -d --scale api=2 --no-recreate api
+
+                  # 2. Wait for the new one to be healthy
+                  echo "Waiting for new instance to be healthy..."
+                  success=false
+                  for i in {1..30}; do
+                    HEALTHY_INSTANCES=$(docker ps --filter "label=com.docker.compose.service=api" --filter "health=healthy" -q | wc -l)
+                    if [ "$HEALTHY_INSTANCES" -ge 2 ]; then
+                       echo "New instance is healthy!"
+                       success=true
+                       break
+                    fi
+                    sleep 2
+                  done
+
+                  if [ "$success" = false ]; then
+                    echo "New instance failed health check. Aborting rollout, keeping old version."
+                    docker-compose up -d --scale api=1 api
+                    exit 1
+                  fi
+
+                  # 3. Stop oldest instance (the old version)
+                  OLD_ID=$(docker ps --filter "label=com.docker.compose.service=api" --format "{{.ID}}" | tail -n 1)
+                  docker stop $OLD_ID
+
+                  # 4. Cleanup to single instance
+                  docker-compose up -d --scale api=1 api
+                  echo "Rolling update successful"
