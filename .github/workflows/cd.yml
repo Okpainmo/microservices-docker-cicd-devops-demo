@@ -18,14 +18,14 @@ jobs:
             - name: Bring up current stack
               run: |
                   cp .env.example .env
-                  docker-compose up -d --build
+                  docker compose up -d --build
 
             - name: Simulate Rolling Update
               run: |
                   echo "Starting rolling update for API service..."
 
                   # 1. Start a new instance of the API
-                  docker-compose up -d --scale api=2 --no-recreate api
+                  docker compose up -d --scale api=2 --no-recreate api
 
                   # 2. Wait for the new one to be healthy
                   echo "Waiting for new instance to be healthy..."
@@ -42,7 +42,7 @@ jobs:
 
                   if [ "$success" = false ]; then
                     echo "New instance failed health check. Aborting rollout, keeping old version."
-                    docker-compose up -d --scale api=1 api
+                    docker compose up -d --scale api=1 api
                     exit 1
                   fi
 
@@ -51,5 +51,5 @@ jobs:
                   docker stop $OLD_ID
 
                   # 4. Cleanup to single instance
-                  docker-compose up -d --scale api=1 api
+                  docker compose up -d --scale api=1 api
                   echo "Rolling update successful"
