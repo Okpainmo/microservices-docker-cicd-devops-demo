@@ -94,35 +94,26 @@ jobs:
           docker build -t frontend:latest ./frontend
           docker build -t worker:latest ./worker
 
-      - name: Scan API image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "api:latest"
-          format: "sarif"
-          output: "trivy-results-api.sarif"
-          severity: "CRITICAL"
-          ignore-unfixed: true
-          exit-code: "1"
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update && sudo apt-get install -y trivy
 
-      - name: Scan Frontend image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "frontend:latest"
-          format: "sarif"
-          output: "trivy-results-frontend.sarif"
-          severity: "CRITICAL"
-          ignore-unfixed: true
-          exit-code: "1"
+      - name: Scan images (SARIF reports)
+        run: |
+          trivy image --format sarif --output trivy-results-api.sarif api:latest
+          trivy image --format sarif --output trivy-results-frontend.sarif frontend:latest
+          trivy image --format sarif --output trivy-results-worker.sarif worker:latest
 
-      - name: Scan Worker image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "worker:latest"
-          format: "sarif"
-          output: "trivy-results-worker.sarif"
-          severity: "CRITICAL"
-          ignore-unfixed: true
-          exit-code: "1"
+      - name: Fail on fixable CRITICAL vulnerabilities
+        run: |
+          echo "Checking for fixable CRITICAL vulnerabilities..."
+          trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 --format table api:latest
+          trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 --format table frontend:latest
+          trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 --format table worker:latest
+          echo "No fixable CRITICAL vulnerabilities found!"
 
       - name: Upload Trivy results
         if: always()
