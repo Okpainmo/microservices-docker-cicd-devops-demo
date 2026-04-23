@@ -5,18 +5,22 @@ import uuid
 from pydantic import BaseModel
 from typing import Optional
 
+
 app = FastAPI()
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+
 
 class JobRequest(BaseModel):
     title: Optional[str] = None
 
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @app.post("/jobs")
 def create_job(job: JobRequest):
@@ -29,8 +33,9 @@ def create_job(job: JobRequest):
         })
     except redis.ConnectionError:
         raise HTTPException(status_code=503, detail="Redis connection failed")
-    
+
     return {"job_id": job_id}
+
 
 @app.get("/jobs/{job_id}")
 def get_job(job_id: str):
@@ -41,9 +46,9 @@ def get_job(job_id: str):
 
     if not job_data:
         raise HTTPException(status_code=404, detail="Job not found")
-        
+
     return {
-        "job_id": job_id, 
+        "job_id": job_id,
         "status": job_data.get("status", "unknown"),
         "title": job_data.get("title", "Untitled Job")
     }
