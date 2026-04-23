@@ -16,8 +16,10 @@ FROM python:3.9-slim-bookworm
 
 WORKDIR /app
 
-# Create a non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Patch base image and create a non-root user
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
