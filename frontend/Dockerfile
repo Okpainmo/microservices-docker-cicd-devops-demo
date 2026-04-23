@@ -1,5 +1,5 @@
 # Stage 1: Build dependencies
-FROM node:18-slim AS builder
+FROM node:18-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -7,12 +7,13 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # Stage 2: Runtime
-FROM node:18-slim
+FROM node:18-bookworm-slim
 
 WORKDIR /app
 
 # Create a non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy from builder
 COPY --from=builder /app/node_modules ./node_modules
