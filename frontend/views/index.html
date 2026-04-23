@@ -1,52 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Job Dashboard</title>
-  <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
-    button { padding: 10px 20px; cursor: pointer; }
-    #result { margin-top: 20px; padding: 10px; background: #f4f4f4; border-radius: 4px; }
-    #jobs { margin-top: 20px; }
-    .job { padding: 8px; border-bottom: 1px solid #ddd; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 40px auto;
+            max-width: 600px;
+            padding: 0 20px;
+            line-height: 1.5;
+        }
+        h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        form { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; }
+        input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        button { padding: 10px 15px; cursor: pointer; }
+        #status { color: #666; margin: 10px 0; font-size: 0.9em; }
+        #jobs { border-top: 1px solid #ddd; }
+        .job-card {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .job-id { font-size: 0.8em; color: #888; display: block; }
+        .badge { font-weight: bold; text-transform: uppercase; font-size: 0.8em; }
+        .job-name { font-weight: bold; }
+    </style>
 </head>
 <body>
-  <h1>Job Processor Dashboard</h1>
-  <button onclick="submitJob()">Submit New Job</button>
-  <div id="result"></div>
-  <div id="jobs"></div>
+    <h1>Job Processor</h1>
+    <p>Submit a new job below.</p>
+    
+    <form id="submissionForm">
+      <input type="text" id="jobTitleInput" placeholder="Job Title" required>
+      <button type="submit">Submit Job</button>
+    </form>
+    
+    <div id="status"></div>
+    
+    <h3>History</h3>
+    <div id="jobs"></div>
 
-  <script>
-    const jobIds = [];
+    <script>
+          const form = document.getElementById('submissionForm');
+          const statusEl = document.getElementById('status');
+          const jobsContainer = document.getElementById('jobs');
 
-    async function submitJob() {
-      const res = await fetch('/submit', { method: 'POST' });
-      const data = await res.json();
-      document.getElementById('result').innerText = `Submitted: ${data.job_id}`;
-      jobIds.push(data.job_id);
-      pollJob(data.job_id);
-    }
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const jobTitle = document.getElementById('jobTitleInput').value;
+            submitJob(jobTitle);
+            form.reset();
+          });
 
-    async function pollJob(id) {
-      const res = await fetch(`/status/${id}`);
-      const data = await res.json();
-      renderJob(id, data.status);
-      if (data.status !== 'completed') {
-        setTimeout(() => pollJob(id), 2000);
-      }
-    }
+          async function submitJob(title) {
+            try {
+              statusEl.innerText = 'Submitting...';
+              const res = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+              });
+              const data = await res.json();
+              statusEl.innerText = `Job submitted: ${data.job_id}`;
+              createJobCard(data.job_id, title);
+              pollJob(data.job_id);
+            } catch (err) {
+              statusEl.innerText = 'Error submitting job';
+            }
+        }
 
-    function renderJob(id, status) {
-      let el = document.getElementById(id);
-      if (!el) {
-        el = document.createElement('div');
-        el.className = 'job';
-        el.id = id;
-        document.getElementById('jobs').appendChild(el);
-      }
-      el.innerText = `Job ${id.substring(0, 8)}... — ${status}`;
-    }
-  </script>
+          async function pollJob(id) {
+          try {
+              const res = await fetch(`/status/${id}`);
+              const data = await res.json();
+              updateJobCard(id, data.status);
+              if (data.status !== 'completed' && data.status !== 'failed') {
+                setTimeout(() => pollJob(id), 2000);
+              }
+                } catch (err) {
+                  console.error(err);
+                }
+              }
+
+              function createJobCard(id, title) {
+                const card = document.createElement('div');
+                card.className = 'job-card';
+                card.id = `job-${id}`;
+                card.innerHTML = `
+                <div>
+                    <span class="job-name">${title}</span>
+                    <span class="job-id">${id}</span>
+                </div>
+                <span class="badge">queued</span>
+            `;
+                jobsContainer.prepend(card);
+        }
+
+          function updateJobCard(id, status) {
+            const card = document.getElementById(`job-${id}`);
+            if (card) {
+              card.querySelector('.badge').innerText = status;
+            }
+          }
+        </script>
 </body>
 </html>
