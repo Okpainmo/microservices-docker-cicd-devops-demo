@@ -31,8 +31,8 @@ def create_job(job: JobRequest):
             "status": "queued",
             "title": job.title or "Untitled Job"
         })
-    except redis.ConnectionError:
-        raise HTTPException(status_code=503, detail="Redis connection failed")
+    except redis.ConnectionError as exc:
+        raise HTTPException(status_code=503, detail="Redis connection failed") from exc
 
     return {"job_id": job_id}
 
@@ -41,8 +41,8 @@ def create_job(job: JobRequest):
 def get_job(job_id: str):
     try:
         job_data = r.hgetall(f"job:{job_id}")
-    except redis.ConnectionError:
-        raise HTTPException(status_code=503, detail="Redis connection failed")
+    except redis.ConnectionError as exc:
+        raise HTTPException(status_code=503, detail="Redis connection failed") from exc
 
     if not job_data:
         raise HTTPException(status_code=404, detail="Job not found")
